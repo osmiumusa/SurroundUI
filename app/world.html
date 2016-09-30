@@ -1,0 +1,141 @@
+<html>
+<head>
+  <title>SurroundUI World</title>
+  <style>
+  			body {
+  				background-color: #000;
+  				color: #fff;
+  				margin: 0px;
+  				padding: 0;
+  				overflow: hidden;
+  				font-family: roboto, sans-serif;
+  				text-shadow: 0 0 1px black;
+  			}
+  			canvas{
+  				position: absolute;
+  				left: 0;
+  				top: 0;
+  				right: 0;
+  				bottom: 0;
+  			}
+  			#intro{
+  				position: absolute;
+  				left: 0;
+  				top: 0;
+  				right: 0;
+  				bottom: 0;
+  				z-index: 10;
+  				background-color: rgba( 0,0,0,.6 );
+  				display: -webkit-flex;
+  				-webkit-align-items: center;
+  				-webkit-justify-content: center;
+  				display: flex;
+  				align-items: center;
+  				justify-content: center;
+  				text-align: center;
+  				line-height: 1em;
+  				transition: opacity 150ms ease-out;
+  			}
+  			.hidden{
+  				pointer-events: none;
+  				opacity: 0;
+  			}
+  		</style>
+</head>
+<script src="/res/jquery-3.1.1.min.js"></script>
+<script src="/res/peer.js"></script>
+<script src="/res/three.js"></script>
+<script src="/res/DeviceOrientationControls.js"></script>
+<script src="/res/StereoEffect.js"></script>
+<script>
+$(document).ready(function() {
+  var id = Math.floor(Math.random()*900000) + 100000;
+  var peer = new Peer(""+id, {host: '137.112.154.182', port: 8120, path: '/peerjs'});
+  var conn;
+  var cursor_sphere;
+  var r=50,phi=0;theta=0;
+
+  //Setup the world!
+  var renderer = new THREE.WebGLRenderer( { antialias: true } );
+  renderer.setPixelRatio( window.devicePixelRatio );
+  renderer.devicePixelRatio = window.devicePixelRatio;
+
+  $("body").append( renderer.domElement );
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, .1, 100 );
+  var controls = new THREE.DeviceOrientationControls( camera );
+  var effect = new THREE.StereoEffect( renderer );
+  effect.eyeSeparation = .1;
+  effect.setSize( window.innerWidth, window.innerHeight );
+
+  var cursor_geometry = new THREE.SphereGeometry( 3, 32, 32 );
+  var cursor_material = new THREE.MeshNormalMaterial();
+  cursor_sphere = new THREE.Mesh( cursor_geometry, cursor_material );
+  cursor_sphere.position.x = 0;
+  cursor_sphere.position.y = 0;
+  cursor_sphere.position.z = r;
+  scene.add( cursor_sphere );
+
+  var light = new THREE.HemisphereLight( 0xffffbb, 0x080820, 1 );
+  scene.add( light );
+
+  function render() {
+  	controls.update();
+  	effect.render( scene, camera );
+  	requestAnimationFrame( render );
+  }
+
+  render();
+
+  var intro = document.getElementById( 'intro' );
+  intro.addEventListener( 'click', function() {
+  	if ( renderer.domElement.mozRequestFullScreen ) {
+  		renderer.domElement.mozRequestFullScreen();
+  	} else if ( renderer.domElement.webkitRequestFullscreen ) {
+  		renderer.domElement.webkitRequestFullscreen();
+  	}
+  	this.classList.add( 'hidden' );
+  });
+
+  function onWindowResize() {
+  	camera.aspect = window.innerWidth / window.innerHeight;
+  	camera.updateProjectionMatrix();
+  	effect.setSize( window.innerWidth, window.innerHeight );
+  }
+
+  window.addEventListener( 'resize', onWindowResize, false );
+
+
+  //Setup the WebRTC stuff
+  conn = peer.connect(prompt("Enter the code from the controller:"));
+  conn.on('open', function(){
+    conn.send('connected');
+  });
+  conn.on('data', function(data){
+    if(data[0]==0) { //Mouse Move
+      theta += data[1]/500;
+      phi += data[2]/500;
+      cursor_sphere.position.x = r*Math.sin(phi)*Math.cos(theta);
+      cursor_sphere.position.y = r*Math.cos(phi);
+      cursor_sphere.position.z = r*Math.sin(phi)*Math.sin(theta);
+    } else if(data[0]==1) { //Mousewheel
+      r += data[1];
+      cursor_sphere.position.x = r*Math.sin(phi)*Math.cos(theta);
+      cursor_sphere.position.y = r*Math.cos(phi);
+      cursor_sphere.position.z = r*Math.sin(phi)*Math.sin(theta);
+    }
+  });
+});
+
+</script>
+<body>
+  <div id="intro">
+    <div>
+    <p>Welcome!</p>
+    <h1>Web VR | Cardboard</h1>
+    <p>Tap screen to go fullscreen</p>
+    </div>
+  </div>
+</body>
+</head>

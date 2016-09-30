@@ -1,0 +1,98 @@
+<html>
+<head>
+  <title>SurroundUI Control</title>
+</head>
+<script src="/res/jquery-3.1.1.min.js"></script>
+<script src="/res/peer.js"></script>
+<script>
+$(document).ready(function() {
+  //Set up porinter lock
+  var x = 0;
+  var y = 0;
+  var pipe;
+  document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
+  document.addEventListener('pointerlockchange', lockChangeAlert, false);
+  document.addEventListener('mozpointerlockchange', lockChangeAlert, false);
+
+  function lockChangeAlert() {
+    if (document.pointerLockElement === $("body")[0] ||
+      document.mozPointerLockElement === $("body")[0]) {
+      console.log('The pointer lock status is now locked');
+      document.addEventListener("mousemove", updatePosition, false);
+      document.addEventListener("mousewheel", MouseWheelHandler, false);
+      document.addEventListener("DOMMousewheel", MouseWheelHandler, false);
+    } else {
+      console.log('The pointer lock status is now unlocked');
+      document.removeEventListener("mousemove", updatePosition, false);
+      document.removeEventListener("mousewheel", MouseWheelHandler, false);
+      document.removeEventListener("DOMMousewheel", MouseWheelHandler, false);
+    }
+  }
+
+  $(document).click(function() {
+    $("body")[0].requestPointerLock();
+  });
+
+  //Setup the WebRTC stuff
+  var id = Math.floor(Math.random()*90000) + 10000;
+  var peer = new Peer(""+id, {host: '137.112.154.182', port: 8120, path: '/peerjs'});
+  $("#code").text(id);
+  peer.on('connection', function(conn) {
+    pipe = conn;
+    conn.on('data', function(data){
+      // Will print 'hi!'
+      console.log(data);
+    });
+  });
+
+  function updatePosition(e) {
+    x+=e.movementX;
+    y+=e.movementY;
+    pipe.send([0,e.movementX,e.movementY]);
+  }
+
+  function MouseWheelHandler(e) {
+    // cross-browser wheel delta
+  	var e = window.event || e; // old IE support
+  	var delta = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)));
+    pipe.send([1,delta]);
+  }
+
+  $(document).mousedown(function(e) {
+    var modmask = 0;
+    if(e.shiftKey) modmask |= 1;
+    if(e.ctrlKey) modmask |= 2;
+    if(e.altKey) modmask |= 4;
+    pipe.send([2,e.which,modmask]);
+  });
+
+  $(document).mouseup(function(e) {
+    var modmask = 0;
+    if(e.shiftKey) modmask |= 1;
+    if(e.ctrlKey) modmask |= 2;
+    if(e.altKey) modmask |= 4;
+    pipe.send([3,e.which,modmask]);
+  });
+
+  $(document).keydown(function(e) {
+    var modmask = 0;
+    if(e.shiftKey) modmask |= 1;
+    if(e.ctrlKey) modmask |= 2;
+    if(e.altKey) modmask |= 4;
+    pipe.send([4,e.which,modmask]);
+  });
+
+  $(document).keyup(function(e) {
+    var modmask = 0;
+    if(e.shiftKey) modmask |= 1;
+    if(e.ctrlKey) modmask |= 2;
+    if(e.altKey) modmask |= 4;
+    pipe.send([5,e.which,modmask]);
+  });
+});
+</script>
+<body>
+Your code is <span id="code">loading...</span><br>
+Click on the document to capture mouse input. To release, press escape.
+</body>
+</head>
